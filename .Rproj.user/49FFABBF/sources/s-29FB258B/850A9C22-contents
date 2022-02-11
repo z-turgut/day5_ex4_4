@@ -1,0 +1,77 @@
+#Ex1
+library(data.table)
+
+# 1.	Read in the file “transactions.csv” into a data table object. Hint: use the fread() function from the data.table package.
+data_customer <- fread("data_customer.csv")
+data_personal <- fread("data_personal.csv")
+data_customer
+##################################################
+#Ex2:
+data_merge <- merge(data_customer, data_personal, by="CustomerId", all=FALSE)
+#Exited: 0,1 (int)
+#Gender:Female, Male (char)
+#set these columns to factors, use the as.factor() function:
+str(data_merge)
+
+data_merge_new <- data_merge[, Gender := as.factor(Gender)]
+data_merge_new <- data_merge_new[, Exited := as.factor(Exited)]
+
+str(data_merge_new)
+summary(data_merge_new)
+
+###################################################
+#Ex3:
+#model:
+Exit<-glm(Exited ~ CreditScore+Gender+Age+Tenure+Balance
+          +NumOfProducts+HasCrCard+IsActiveMember
+          +EstimatedSalary, family="binomial", data=data_merge_new)
+
+
+predict_churn<-predict(Exit, data_merge_new, type="response")
+predict_churn
+
+data_merge_new <- data_merge_new[, ChurnPrediction:= predict_churn]
+data_merge_new
+
+maxChurnCustomer <- data_merge_new[ChurnPrediction==max(ChurnPrediction),.(ChurnPrediction,CustomerId)]
+minChurnCustomer <- data_merge_new[ChurnPrediction==min(ChurnPrediction),.(ChurnPrediction,CustomerId)]
+maxChurnCustomer
+minChurnCustomer
+
+# > maxChurnCustomer
+# ChurnPrediction CustomerId
+# 1:       0.9405975   15653251
+# > minChurnCustomer
+# ChurnPrediction CustomerId
+# 1:       0.0119297   15662641
+
+#AVG churn probability for men and women:
+avgChurnByFemales <- data_merge_new[Gender=="Female",.(AvgChurnPrediction=mean(ChurnPrediction)), by="Gender"]
+avgChurnByMales   <- data_merge_new[Gender=="Male",.(AvgChurnPrediction=mean(ChurnPrediction)), by="Gender"]
+avgChurnByFemales
+avgChurnByMales
+# > avgChurnByFemales
+# Gender AvgChurnPrediction
+# 1: Female          0.2507154
+# > avgChurnByMales
+# Gender AvgChurnPrediction
+# 1:   Male          0.1645593
+avgChurnByGender <- data_merge_new[,.(AvgChurnPrediction=mean(ChurnPrediction)), by="Gender"]
+avgChurnByGender
+# Gender AvgChurnPrediction
+# 1: Female          0.2507154
+# 2:   Male          0.1645593
+
+#############################################################
+#Ex4:
+churnProbability <- function(data_ex5, customerId){
+  if(customerId %in% data_ex5$CustomerId){
+    churnPred <- data_ex5[CustomerId == customerId, ChurnPrediction]
+    return(churnPred)
+  }else{
+    print("No customer exists with this id:")
+    print(customerId)
+  }
+}
+
+churnProbability(data_merge_new, 15565701)
